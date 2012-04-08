@@ -1,0 +1,25 @@
+[
+   {
+      "id":1244,
+      "title":"I want candy",
+      "userName":"matt",
+      "numViews":2298,
+      "numVotes":46,
+      "numComments":10,
+      "numHearts":0,
+      "rank":5258,
+      "dateCreated":"2005-08-09 08:40:58",
+      "colors":[
+         "F03300",
+         "FF4F64",
+         "FFFF00",
+         "A5E41C",
+         "34BBDA"
+      ],
+      "description":"",
+      "url":"http:\/\/www.colourlovers.com\/palette\/1244\/I_want_candy",
+      "imageUrl":"http:\/\/www.colourlovers.com\/paletteImg\/F03300\/FF4F64\/FFFF00\/A5E41C\/34BBDA\/I_want_candy.png",
+      "badgeUrl":"http:\/\/www.colourlovers.com\/images\/badges\/p\/1\/1244_I_want_candy.png",
+      "apiUrl":"http:\/\/www.colourlovers.com\/api\/palette\/1244"
+   }
+]
