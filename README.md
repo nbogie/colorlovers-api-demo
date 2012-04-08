@@ -6,5 +6,7 @@ Not an example of good haskell.
 
 Screenshots:
 ============
-![screenshot of first gui](https://github.com/nbogie/colorlovers-api-demo/raw/master/screenshots/Screenshot.png)
+![screenshot of first gui](https://github.com/nbogie/colorlovers-api-demo/raw/master/docs/screenshots/Screenshot.png)
+
+![another screenshot of first gui](https://github.com/nbogie/colorlovers-api-demo/raw/master/docs/screenshots/Screenshot-two-tone.png)
 
