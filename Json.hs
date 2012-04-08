@@ -1,9 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-} 
 module Json where
 --
+-- example urls for palettes
 -- http://www.colourlovers.com/api/palette/1244?format=json
 -- http://www.colourlovers.com/api/palettes/search?sortCol=votes&sortBy=DESC&query=candy&format=json
 
+-- WARNING: 
+-- This is a TERRIBLE example of Aeson / Attoparsec.
+-- Don't do things this way.
 --
 -- import Control.Applicative ((<$>), (<*>))
 import Control.Monad (mzero)
