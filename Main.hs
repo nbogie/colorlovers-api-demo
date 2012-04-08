@@ -1,6 +1,5 @@
-module Gui where
+module Main where
 import Graphics.Gloss.Interface.Game
-import qualified Data.Map as M
 import Json hiding (main)
 
 main = guimain
@@ -50,8 +49,8 @@ instance ColorFor Light where
   colorFor Amber = orange
 
 drawState :: GS -> Picture
-drawState _gs@(msgs,_light,train,pal) = Pictures [ 
---     drawLight light
+drawState _gs@(_msgs,_tlight,train,pal) = Pictures [ 
+--     drawLight tlight
     drawPalette (-100, 40) pal
   , drawTrain train pal ]
   -- , drawDebug gs  ]
@@ -88,8 +87,8 @@ drawCar (x,y) c = Pictures [
     translate 0 10    $ color c $ rectangleSolid 80 30
     ]]
 
-drawLight light = translate (-200) 100 $ scale 0.1 0.1 $ 
+drawLight tlight = translate (-200) 100 $ scale 0.1 0.1 $ 
   Pictures [ 
   Color black $ squareSolid 290,
-  Color (colorFor light) $ circleSolid 100  ]
+  Color (colorFor tlight) $ circleSolid 100  ]
 squareSolid s = rectangleSolid s s 
