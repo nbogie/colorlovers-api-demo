@@ -1,6 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-} 
 module Json where
+--
+-- http://www.colourlovers.com/api/palette/1244?format=json
+-- http://www.colourlovers.com/api/palettes/search?sortCol=votes&sortBy=DESC&query=candy&format=json
 
+--
 -- import Control.Applicative ((<$>), (<*>))
 import Control.Monad (mzero)
 import Data.Aeson
@@ -10,20 +14,20 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.Vector as V
 import Numeric (readHex)
 
-testFile = "example.json"
+testFile = "many.json" -- "example.json"
 
 main ::IO ()
-main = getPalette >>= print
+main = getPaletteList >>= print
 
-getPalette ::  IO PaletteList
-getPalette = do
+getPaletteList ::  IO PaletteList
+getPaletteList = do
   result <- (fmap parseFromString $ readFile testFile)
   case result of
     Success kc -> return kc
     Error e -> error $ "Error parsing read json: " ++ e
 
-parseCollectionsJSON :: FilePath -> IO (T.Result PaletteList)
-parseCollectionsJSON p = 
+parseFromFile :: FilePath -> IO (T.Result PaletteList)
+parseFromFile p = 
   fmap parseFromString (readFile p)
 
 type Colr = (Int,Int,Int)
@@ -38,9 +42,11 @@ data Palette = Palette
 data PaletteList = PaletteList [Palette] deriving (Show)
 
 instance FromJSON PaletteList where
-  parseJSON (Array a) = do
-    p <- parseJSON (a V.! 0)
-    return $ PaletteList [p]
+  parseJSON ar@(Array a) = do
+    -- how to take individuals from the array: 
+    -- p <- parseJSON (a V.! 0)
+    ps <- parseJSON ar
+    return $ PaletteList ps
   parseJSON _  = mzero
 
 instance FromJSON Palette where

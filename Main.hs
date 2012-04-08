@@ -4,36 +4,49 @@ import Json hiding (main)
 
 main = guimain
 guimain = do
-  (PaletteList [palette]) <- getPalette
+  (PaletteList (pal:pals)) <- getPaletteList
   gameInWindow 
-          "HDTP Ex41" --name of the window
+          "Color Lovers API demo" --name of the window
           (700,600) -- initial size of the window
           (0, 0) -- initial position of the window
           white -- background colour
           30 -- number of simulation steps to take for each second of real time
-          ([], Red, initTrain, palette) -- the initial world
+          (GS [] Red initTrain pal pals )-- the initial world
           drawState -- A function to convert the world into a picture
           handleInput -- A function to handle input events
           update
 
 update :: Float -> GS -> GS
-update step (_msgs, l, ((tx,ty), tdir), pal) = ([step], l, ((tx+vel, ty), tdir'), pal)
-  where vel = tdir * step * 20 * case l of
+update step gs@(GS _msgs l ((tx,ty), tdir) pal pals) = gs { train = ((tx+vel, ty), tdir') }
+  where vel = tdir * step * 40 * case l of
                 Red -> 0
                 Amber -> 1
                 Green -> 2
-        tdir' | tx > 800 = -1
-              | tx < 800 = 1
+        tdir' | tx > mx = -1
+              | tx < (-mx) = 1
               | otherwise = tdir
+          where mx = 550
 
-initTrain = ((-300,0),1)
-type GS = ([Float], Light,Train, Palette)
+initTrain = ((-500,0),1)
+data GS = GS { msgs :: [Float] 
+  , lightSt :: Light
+  , train :: Train
+  , palette:: Palette
+  , palettes:: [Palette] } deriving (Show)
 
 type ClickHandler = Event -> GS -> GS
 handleInput :: Event -> GS -> GS
+handleInput (EventKey (Char 'n') Down _ _)  gs = nextPalette gs
 handleInput (EventKey (Char _c) Down _ _)  gs = gs
-handleInput _ev@(EventKey (MouseButton LeftButton) Down  _ _pos) (is,l,c, pal) = (is,nextLight l,c, pal)
+handleInput _ev@(EventKey (MouseButton LeftButton) Down  _ _pos) gs = 
+  gs { lightSt = nextLight (lightSt gs) }
+
 handleInput _ gs = gs 
+
+nextPalette gs = 
+  case palettes gs of
+    [] -> gs
+    (n:rest) -> gs { palette = n, palettes = rest }
 
 data Light = Red | Green | Amber deriving (Show, Eq)
 nextLight :: Light -> Light
@@ -49,10 +62,10 @@ instance ColorFor Light where
   colorFor Amber = orange
 
 drawState :: GS -> Picture
-drawState _gs@(_msgs,_tlight,train,pal) = Pictures [ 
---     drawLight tlight
-    drawPalette (-100, 40) pal
-  , drawTrain train pal ]
+drawState gs = Pictures [ 
+--     drawLight (lightSt gs)
+    drawPalette (-100, 40) $ palette gs
+  , drawTrain (train gs) (palette gs) ]
   -- , drawDebug gs  ]
 
 drawDebug :: GS -> Picture
