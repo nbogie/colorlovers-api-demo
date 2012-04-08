@@ -3,8 +3,8 @@ module Json where
 --
 -- example urls for palettes
 -- http://www.colourlovers.com/api/palette/1244?format=json
--- http://www.colourlovers.com/api/palettes/search?sortCol=votes&sortBy=DESC&query=candy&format=json
-
+-- http://www.colourlovers.com/api/palettes/top?keywords=candy&showPaletteWidths=1&format=json
+--
 -- WARNING: 
 -- This is a TERRIBLE example of Aeson / Attoparsec.
 -- Don't do things this way.
@@ -15,13 +15,14 @@ import Data.Aeson
 import qualified Data.Aeson.Types as T
 import Data.Attoparsec (parse, Result(..))
 import qualified Data.ByteString.Char8 as BS
-
 import Numeric (readHex)
 
-testFile = "inputs/many.json" -- "inputs/example.json"
+testFile = "inputs/ninja.json" -- "inputs/many.json" -- "inputs/candy.json" -- "inputs/example.json"
 
 main ::IO ()
-main = getPaletteList >>= print
+main = do
+  (PaletteList (p:_ps)) <- getPaletteList
+  putStrLn $ paletteToGlossHaskellSrc p
 
 getPaletteList ::  IO PaletteList
 getPaletteList = do
@@ -36,6 +37,7 @@ data Palette = Palette
   , pTitle::String
   , pUserName::String
   , pColors :: [(Int, Int, Int)]
+  , pWidths :: Maybe [Float]
   , pUrl :: String
   }
   deriving (Show)
@@ -54,8 +56,9 @@ instance FromJSON Palette where
     t    <-  o  .:  "title"
     u    <-  o  .:  "userName"
     cs   <-  o  .:  "colors"
+    ws   <-  o  .:? "colorWidths"
     url  <-  o  .:  "url"
-    return $ Palette i t u (map parseColor cs) url
+    return $ Palette i t u (map parseColor cs) ws url
   parseJSON _  = mzero
 
 parseColor :: String -> (Int,Int,Int)
@@ -75,3 +78,10 @@ parseFromString s =
                  ++ show ctxts  ++ ", rest: " ++ BS.unpack rest
        Partial _           -> 
          Error "JSON parse error.  Unexpected partial."
+
+paletteToGlossHaskellSrc :: Palette -> String
+paletteToGlossHaskellSrc = unlines . map colorToGlossHaskellString . pColors
+
+colorToGlossHaskellString (r,g,b) = 
+  "makeColor8 " ++ unwords (map show [r,g,b, 255])
+
