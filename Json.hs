@@ -15,10 +15,10 @@ import Data.Aeson
 import qualified Data.Aeson.Types as T
 import Data.Attoparsec (parse, Result(..))
 import qualified Data.ByteString.Char8 as BS
-import qualified Data.Vector as V
+
 import Numeric (readHex)
 
-testFile = "many.json" -- "example.json"
+testFile = "inputs/many.json" -- "inputs/example.json"
 
 main ::IO ()
 main = getPaletteList >>= print
@@ -30,37 +30,32 @@ getPaletteList = do
     Success kc -> return kc
     Error e -> error $ "Error parsing read json: " ++ e
 
-parseFromFile :: FilePath -> IO (T.Result PaletteList)
-parseFromFile p = 
-  fmap parseFromString (readFile p)
-
-type Colr = (Int,Int,Int)
+data PaletteList = PaletteList [Palette] deriving (Show)
 data Palette = Palette 
   { pId :: Integer
   , pTitle::String
   , pUserName::String
-  , pColors :: [Colr]
+  , pColors :: [(Int, Int, Int)]
   , pUrl :: String
   }
   deriving (Show)
-data PaletteList = PaletteList [Palette] deriving (Show)
 
 instance FromJSON PaletteList where
-  parseJSON ar@(Array a) = do
+  parseJSON ar@(Array _a) = do
     -- how to take individuals from the array: 
-    -- p <- parseJSON (a V.! 0)
+    -- p <- parseJSON (a Data.Vector.! 0)
     ps <- parseJSON ar
     return $ PaletteList ps
   parseJSON _  = mzero
 
 instance FromJSON Palette where
   parseJSON (Object o) = do
-    i <- o .: "id"
-    t <- o .: "title"
-    u <- o .: "userName"
-    colors <- o .: "colors"
-    url <- o .: "url"
-    return $ Palette i t u (map parseColor colors) url
+    i    <-  o  .:  "id"
+    t    <-  o  .:  "title"
+    u    <-  o  .:  "userName"
+    cs   <-  o  .:  "colors"
+    url  <-  o  .:  "url"
+    return $ Palette i t u (map parseColor cs) url
   parseJSON _  = mzero
 
 parseColor :: String -> (Int,Int,Int)
@@ -80,4 +75,3 @@ parseFromString s =
                  ++ show ctxts  ++ ", rest: " ++ BS.unpack rest
        Partial _           -> 
          Error "JSON parse error.  Unexpected partial."
-

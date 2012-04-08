@@ -6,22 +6,23 @@ main = guimain
 guimain = do
   (PaletteList (pal:pals)) <- getPaletteList
   gameInWindow 
-          "Color Lovers API demo" --name of the window
-          (700,600) -- initial size of the window
+          "Color Lovers Palettes demo" --name of the window
+          (950,400) -- initial size of the window
           (0, 0) -- initial position of the window
           white -- background colour
           30 -- number of simulation steps to take for each second of real time
-          (GS [] Red initTrain pal (pals++[pal]) )-- the initial world
+          (GS [] Red initTrain pal pals False) -- the initial world
           drawState -- A function to convert the world into a picture
           handleInput -- A function to handle input events
-          update
+          updateState
 
-update :: Float -> GS -> GS
-update step gs@(GS _msgs l ((tx,ty), tdir) pal pals) = gs { train = ((tx+vel, ty), tdir') }
-  where vel = tdir * step * 40 * case l of
+updateState :: Float -> GS -> GS
+updateState step gs = gs { train = ((tx+vel, ty), tdir') }
+  where vel = tdir * step * 20 * case lightSt gs of
                 Red -> 0
                 Amber -> 1
                 Green -> 2
+        ((tx,ty),tdir) = train gs
         tdir' | tx > mx = -1
               | tx < (-mx) = 1
               | otherwise = tdir
@@ -32,21 +33,34 @@ data GS = GS { msgs :: [Float]
   , lightSt :: Light
   , train :: Train
   , palette:: Palette
-  , palettes:: [Palette] } deriving (Show)
+  , palettes:: [Palette]
+  , displayInfo :: Bool } deriving (Show)
 
-type ClickHandler = Event -> GS -> GS
 handleInput :: Event -> GS -> GS
-handleInput (EventKey (Char 'n') Down _ _)  gs = nextPalette gs
-handleInput (EventKey (Char _c) Down _ _)  gs = gs
-handleInput _ev@(EventKey (MouseButton LeftButton) Down  _ _pos) gs = 
-  gs { lightSt = nextLight (lightSt gs) }
+handleInput (EventKey k Down _ _) = handleDown k
+handleInput _ = id 
 
-handleInput _ gs = gs 
+handleDown (Char       ' ')      = forwardLight
+handleDown (Char       'i')      = toggleInfo
+handleDown (SpecialKey KeyLeft)  = forwardPalette
+handleDown (SpecialKey KeyRight) = backPalette
+handleDown (MouseButton LeftButton) = forwardLight
+handleDown _ = id
 
-nextPalette gs = 
+toggleInfo gs = gs {displayInfo = not $ displayInfo gs}
+forwardPalette gs = let current = palette gs in
   case palettes gs of
     [] -> gs
-    (n:rest) -> gs { palette = n, palettes = rest ++ [n] }
+    (n:rest) -> gs { palette = n, palettes = rest ++ [current] }
+
+backPalette gs = 
+  case palettes gs of
+    [] -> gs
+    (ps) -> gs { palette = fromEnd, palettes = current : rest }
+      where (fromEnd, rest) = (last ps, init ps)
+            current = palette gs
+
+forwardLight gs = gs { lightSt = nextLight (lightSt gs) }
 
 data Light = Red | Green | Amber deriving (Show, Eq)
 nextLight :: Light -> Light
@@ -62,17 +76,17 @@ instance ColorFor Light where
   colorFor Amber = orange
 
 drawState :: GS -> Picture
-drawState gs = Pictures [ 
+drawState gs = Pictures $ [ 
 --     drawLight (lightSt gs)
     drawPalette (-100, 40) $ palette gs
-  , drawTrain (train gs) (palette gs) ]
-  -- , drawDebug gs  ]
+  , drawTrain (train gs) (palette gs) ] 
+    ++ [drawInfo gs | displayInfo gs]
 
-drawDebug :: GS -> Picture
-drawDebug gs = color white $ 
-  translate (-200) (-100) $ 
+drawInfo :: GS -> Picture
+drawInfo gs = color black $ 
+  translate (-300) (-100) $ 
   scale 0.1 0.1 $ 
-  Text $ show gs
+  Text $ pTitle $ palette gs
 
 type Train = ((Float,Float), Float)
 
