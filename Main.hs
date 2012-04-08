@@ -11,7 +11,7 @@ guimain = do
           (0, 0) -- initial position of the window
           white -- background colour
           30 -- number of simulation steps to take for each second of real time
-          (GS [] Red initTrain pal pals )-- the initial world
+          (GS [] Red initTrain pal (pals++[pal]) )-- the initial world
           drawState -- A function to convert the world into a picture
           handleInput -- A function to handle input events
           update
@@ -46,7 +46,7 @@ handleInput _ gs = gs
 nextPalette gs = 
   case palettes gs of
     [] -> gs
-    (n:rest) -> gs { palette = n, palettes = rest }
+    (n:rest) -> gs { palette = n, palettes = rest ++ [n] }
 
 data Light = Red | Green | Amber deriving (Show, Eq)
 nextLight :: Light -> Light
