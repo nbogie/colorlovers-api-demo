@@ -1,5 +1,5 @@
 module Main where
-import Graphics.Gloss.Interface.Game
+import Graphics.Gloss.Interface.Pure.Game
 import Json hiding (main)
 
 main = guimain
