@@ -1,8 +1,18 @@
-Just a toy.
-
-It doesn't make requests to the API yet.  it just parses the Json from local file.
+Just a small learning experiment in Aeson and Gloss. 
 
 Not an example of good haskell.
+
+It can load a random palette list from a request to the API, or from some local json files.
+
+Keys:
+=====
+ * Space              : load a new random palette from ColourLovers.com
+ * 'f'                : load a new random palette list from file (limited)
+ * Cursor Left, Right : Change palette within the current list
+ * Cursor Up, Down    : Change the brightness of the palette (automatically, dumbly, two-toned)
+ * 'i'                : toggle palette info
+ * 'd'                : change dimming function set [(light, dark), (bright, dim)]
+ * Enter              : Change anim speed
 
 Screenshots:
 ============

@@ -6,30 +6,29 @@ module Json where
 -- http://www.colourlovers.com/api/palettes/top?keywords=candy&showPaletteWidths=1&format=json
 --
 -- WARNING: 
--- This is a TERRIBLE example of Aeson / Attoparsec.
--- Don't do things this way.
+-- This is a bad example of Aeson
 --
--- import Control.Applicative ((<$>), (<*>))
 import Control.Monad (mzero)
 import Data.Aeson
-import qualified Data.Aeson.Types as T
-import Data.Attoparsec (parse, Result(..))
-import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy.Char8 as BS
 import Numeric (readHex)
 
 testFile = "inputs/ninja.json" -- "inputs/many.json" -- "inputs/candy.json" -- "inputs/example.json"
 
-main ::IO ()
-main = do
-  (PaletteList (p:_ps)) <- getPaletteList
-  putStrLn $ paletteToGlossHaskellSrc p
+main::IO ()
+main = demoJson
 
-getPaletteList ::  IO PaletteList
-getPaletteList = do
-  result <- (fmap parseFromString $ readFile testFile)
-  case result of
-    Success kc -> return kc
-    Error e -> error $ "Error parsing read json: " ++ e
+demoJson ::  IO ()
+demoJson = do
+  c <- readFile testFile
+  case jsonStringToPalette c of
+        Right (PaletteList (p:_)) -> putStrLn $ paletteToGlossHaskellSrc p
+        Right _                   -> error $ "Parsed to empty palette list! File: " ++ testFile
+        Left e                    -> error $ "Error parsing json: " ++ e ++ " from file " ++ testFile
+
+jsonStringToPalette :: String -> Either String PaletteList
+jsonStringToPalette str = 
+  eitherDecode (BS.pack str)
 
 data PaletteList = PaletteList [Palette] deriving (Show)
 data Palette = Palette 
@@ -67,17 +66,6 @@ parseColor [a,b,c,d,e,f] = (r [a,b], r [c,d], r [e,f])
                 [(n, "")] -> n
                 other     -> error $ "Can't parse color: "++show other
 parseColor other = error $ "Error parsing color: " ++ other
-
-parseFromString :: String -> T.Result PaletteList
-parseFromString s = 
-  let bs = BS.pack s
-  in case parse json bs of
-       Done _rest result -> T.parse parseJSON result
-       Fail rest ctxts err -> 
-         Error $ "JSON parse error: " ++ err ++ ", contexts: " 
-                 ++ show ctxts  ++ ", rest: " ++ BS.unpack rest
-       Partial _           -> 
-         Error "JSON parse error.  Unexpected partial."
 
 paletteToGlossHaskellSrc :: Palette -> String
 paletteToGlossHaskellSrc = unlines . map colorToGlossHaskellString . pColors

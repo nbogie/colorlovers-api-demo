@@ -1,20 +1,29 @@
 module Main where
-import Graphics.Gloss.Interface.Pure.Game
+import Graphics.Gloss.Interface.IO.Game
 import Json hiding (main)
+import Debug.Trace
+import qualified PaletteGetterWeb as PGW
+import qualified PaletteGetterFile as PGF
 
 main = guimain
+
 guimain = do
-  (PaletteList (pal:pals)) <- getPaletteList
-  gameInWindow 
-          "Color Lovers Palettes demo" --name of the window
-          (950,400) -- initial size of the window
-          (0, 0) -- initial position of the window
+  plE  <- PGF.getRandomPaletteList
+  let (pal, pals) = case plE of
+        Left err                   -> error $ "While getting or parsing palette: " ++ err
+        Right (PaletteList (p:ps)) -> (p, ps)
+        Right _                    -> error "empty palette list!"
+  playIO
+          (InWindow "Color Lovers Palettes demo" --name of the window
+                (950,400) -- initial size of the window
+                (0, 0) -- initial position of the window
+          )
           white -- background colour
           30 -- number of simulation steps to take for each second of real time
-          (GS [] Stop initTrain pal pals False initColorControls) -- the initial world
-          drawState -- A function to convert the world into a picture
+          (GS [] Slow initTrain pal pals False initColorControls) -- the initial world
+          (return . drawState) -- A function to convert the world into a picture
           handleInput -- A function to handle input events
-          updateState
+          (\f g -> return (updateState f g))
 
 updateState :: Float -> GS -> GS
 updateState step gs = gs { train = ((tx+vel, ty), tdir') }
@@ -37,12 +46,25 @@ data GS = GS { msgs :: [Float]
   , colorControls :: ColorControls
   } deriving (Show)
 
+data PaletteSrc = FromWeb | FromFile
 
-handleInput :: Event -> GS -> GS
-handleInput (EventKey k Down _ _) = handleDown k
-handleInput _ = id 
+getPaletteList FromWeb =  PGW.getRandomPaletteList 
+getPaletteList FromFile =  PGF.getRandomPaletteList 
+randomPaletteList src gs = do
+  rp <- getPaletteList src
+  return $ case rp of
+    Left _err                  -> traceShow _err gs
+    Right (PaletteList (p:ps)) -> gs { palette = p, palettes = ps }
+    Right _                    -> error "Empty palette list in getPaletteList"
 
-handleDown (Char       ' ')      = forwardLight
+handleInput :: Event -> GS -> IO GS
+handleInput (EventKey (SpecialKey KeySpace) Down _ _) = randomPaletteList FromWeb
+handleInput (EventKey (Char 'f')            Down _ _) = randomPaletteList FromFile
+handleInput (EventKey k                     Down _ _) = return . handleDown k
+handleInput _                                         = return . id -- ignore key ups, and other
+
+handleDown ::  Key -> GS -> GS
+handleDown (SpecialKey KeyEnter) = forwardLight
 handleDown (Char       'i')      = toggleInfo
 handleDown (Char       'd')      = chgColorCtrls toggleDimType
 handleDown (SpecialKey KeyDown)  = chgColorCtrls forwardDim
@@ -89,7 +111,7 @@ drawState gs = Pictures $ [
     ++ [drawInfo gs | displayInfo gs]
 
 drawBackground :: Palette -> Picture
-drawBackground p = rectangleSolid 2000 2000 
+drawBackground _p = rectangleSolid 2000 2000 
 drawInfo :: GS -> Picture
 drawInfo gs = color white $ 
   translate (-300) (-100) $ 
