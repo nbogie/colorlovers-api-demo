@@ -10,6 +10,8 @@ import qualified PaletteGetterFile as PGF
 main ::  IO ()
 main = guimain
 
+data DisplayMode = DMWindow | DMFull
+
 data ChanMsg = NewPaletteList PaletteList
              | Msg String
              deriving (Show)
@@ -24,16 +26,21 @@ guimain = do
         Right _                    -> error "empty palette list!"
 
   playIO
-          (InWindow "Color Lovers Palettes demo" --name of the window
-                (950,400) -- initial size of the window
-                (0, 0) -- initial position of the window
-          )
+          (display DMFull)
           white -- background colour
           30 -- number of simulation steps to take for each second of real time
           (GS [] Slow initTrain pal pals False initColorControls) -- the initial world
           (return . drawState) -- A function to convert the world into a picture
           (handleInput ch) -- A function to handle input events
           (updateState ch)
+  where
+    display DMFull = FullScreen (1280, 800)
+    display DMWindow = 
+      (InWindow "Color Lovers Palettes demo" --name of the window
+            (950,400) -- initial size of the window
+            (0, 0) -- initial position of the window
+      )
+
 
 
 
