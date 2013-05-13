@@ -13,7 +13,8 @@ import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as BS
 import Numeric (readHex)
 
-testFile = "inputs/ninja.json" -- "inputs/many.json" -- "inputs/candy.json" -- "inputs/example.json"
+testFile ::  FilePath
+testFile = "inputs/ninja.json"
 
 main::IO ()
 main = demoJson
@@ -42,11 +43,9 @@ data Palette = Palette
   deriving (Show)
 
 instance FromJSON PaletteList where
-  parseJSON ar@(Array _a) = do
+  parseJSON ar@(Array _a) = fmap PaletteList $ parseJSON ar
     -- how to take individuals from the array: 
     -- p <- parseJSON (a Data.Vector.! 0)
-    ps <- parseJSON ar
-    return $ PaletteList ps
   parseJSON _  = mzero
 
 instance FromJSON Palette where
@@ -70,6 +69,7 @@ parseColor other = error $ "Error parsing color: " ++ other
 paletteToGlossHaskellSrc :: Palette -> String
 paletteToGlossHaskellSrc = unlines . map colorToGlossHaskellString . pColors
 
+colorToGlossHaskellString ::  (Num a, Show a) => (a, a, a) -> [Char]
 colorToGlossHaskellString (r,g,b) = 
   "makeColor8 " ++ unwords (map show [r,g,b, 255])
 
