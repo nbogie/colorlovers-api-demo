@@ -207,7 +207,7 @@ data ColorControls = ColorControls DimAmount DimType deriving (Show)
 chgColorCtrls :: (ColorControls -> ColorControls) -> GS -> GS
 chgColorCtrls f gs@(GS{ colorControls=cc }) = gs {colorControls = f cc}
 
-initColorControls = ColorControls 0 BrightAndDim
+initColorControls = forwardDim $ ColorControls 0 BrightAndDim
 otherDimType BrightAndDim = LightAndDark
 otherDimType LightAndDark = BrightAndDim
 brightOrLight LightAndDark = light
