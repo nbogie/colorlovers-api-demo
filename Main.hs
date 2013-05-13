@@ -1,5 +1,7 @@
 module Main where
 import Control.Concurrent
+import Control.Concurrent.STM.TChan
+import Control.Concurrent.STM
 import Debug.Trace
 import Graphics.Gloss.Interface.IO.Game
 
@@ -18,7 +20,7 @@ data ChanMsg = NewPaletteList PaletteList
 
 guimain ::  IO ()
 guimain = do
-  ch   <- newChan :: IO (Chan ChanMsg) -- receives results of forked web requests, etc
+  ch   <- atomically $ newTChan :: IO (TChan ChanMsg) -- receives results of forked web requests, etc
   plE  <- PGF.getRandomPaletteList
   let (pal, pals) = case plE of
         Left err                   -> error $ "While getting or parsing palette: " ++ err
@@ -44,7 +46,7 @@ guimain = do
 
 
 
-updateState :: (Chan ChanMsg) -> Float -> GS -> IO GS
+updateState :: (TChan ChanMsg) -> Float -> GS -> IO GS
 updateState ch step gs = do
   processAnyMessages ch gs >>= return . updateTrain step 
 
@@ -63,12 +65,12 @@ updateTrain step gs =
             | otherwise  = tdir
         where mx = 450
 
-processAnyMessages :: Chan ChanMsg -> GS -> IO GS
+processAnyMessages :: TChan ChanMsg -> GS -> IO GS
 processAnyMessages ch gs = do
-  chanEmpty <- isEmptyChan ch
+  chanEmpty <- atomically $ isEmptyTChan ch
   if not chanEmpty
       then
-        fmap (processMessage gs) $ readChan ch
+        fmap (processMessage gs) $ atomically (readTChan ch)
       else
         return gs
 processMessage :: GS -> ChanMsg -> GS
@@ -95,18 +97,18 @@ getPaletteList ::  PaletteSrc -> IO (Either String PaletteList)
 getPaletteList FromWeb  = PGW.getRandomPaletteList
 getPaletteList FromFile = PGF.getRandomPaletteList
 
-randomPaletteList :: (Chan ChanMsg) ->  PaletteSrc -> IO ()
+randomPaletteList :: (TChan ChanMsg) ->  PaletteSrc -> IO ()
 randomPaletteList ch src = do
         _tId <- forkIO$ do
             rp <- getPaletteList src
             case rp of
               Left _err                     -> traceShow _err (return ())
-              Right pl@(PaletteList ps) | not $ null ps -> writeChan ch (NewPaletteList pl)
+              Right pl@(PaletteList ps) | not $ null ps -> atomically $ writeTChan ch (NewPaletteList pl)
                                         | otherwise      -> error "Empty palette list in getPaletteList"
         return ()
 
 
-handleInput :: (Chan ChanMsg) -> Event -> GS -> IO GS
+handleInput :: (TChan ChanMsg) -> Event -> GS -> IO GS
 handleInput ch (EventKey (SpecialKey KeySpace) Down _ _) gs = randomPaletteList ch FromWeb >> return gs
 handleInput ch (EventKey (Char 'f')            Down _ _) gs = randomPaletteList ch FromFile >> return gs
 handleInput _  (EventKey k                     Down _ _) gs = return $ handleDown k gs

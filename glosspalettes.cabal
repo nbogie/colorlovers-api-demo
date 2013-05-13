@@ -62,7 +62,8 @@ Executable glosspalettes
     --cmdargs   >= 0.6.*,
     base        >= 4.2.0.0,
     HTTP        >= 4.0.0.0,
-    random      >= 1.0.0.0
+    random      >= 1.0.0.0,
+    stm         >= 2.3
   
   -- Modules not exported by this package.
   -- Other-modules:       
