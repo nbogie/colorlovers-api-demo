@@ -1,18 +1,28 @@
 module Main where
-import Graphics.Gloss.Interface.IO.Game
-import Json hiding (main)
+import Control.Concurrent
 import Debug.Trace
+import Graphics.Gloss.Interface.IO.Game
+
+import Json hiding (main)
 import qualified PaletteGetterWeb as PGW
 import qualified PaletteGetterFile as PGF
 
+main ::  IO ()
 main = guimain
 
+data ChanMsg = NewPaletteList PaletteList
+             | Msg String
+             deriving (Show)
+
+guimain ::  IO ()
 guimain = do
+  ch   <- newChan :: IO (Chan ChanMsg) -- receives results of forked web requests, etc
   plE  <- PGF.getRandomPaletteList
   let (pal, pals) = case plE of
         Left err                   -> error $ "While getting or parsing palette: " ++ err
         Right (PaletteList (p:ps)) -> (p, ps)
         Right _                    -> error "empty palette list!"
+
   playIO
           (InWindow "Color Lovers Palettes demo" --name of the window
                 (950,400) -- initial size of the window
@@ -22,18 +32,40 @@ guimain = do
           30 -- number of simulation steps to take for each second of real time
           (GS [] Slow initTrain pal pals False initColorControls) -- the initial world
           (return . drawState) -- A function to convert the world into a picture
-          handleInput -- A function to handle input events
-          (\f g -> return (updateState f g))
+          (handleInput ch) -- A function to handle input events
+          (updateState ch)
 
-updateState :: Float -> GS -> GS
-updateState step gs = gs { train = ((tx+vel, ty), tdir') }
-  where vel = tdir * step * 20 * case lightSt gs of
+
+
+updateState :: (Chan ChanMsg) -> Float -> GS -> IO GS
+updateState ch step gs = do
+  processAnyMessages ch gs >>= return . updateTrain step 
+
+updateTrain ::  Float -> GS -> GS
+updateTrain step gs = 
+  gs { train = ((tx+vel, ty), tdir') }
+    where 
+      vel = tdir * step * 20 * case lightSt gs of
                 Stop -> 0; Slow -> 1; Go -> 2
-        ((tx,ty),tdir) = train gs
-        tdir' | tx > mx = -1
-              | tx < (-mx) = 1
-              | otherwise = tdir
-          where mx = 450
+      ((tx,ty),tdir) = train gs
+      tdir' | tx > mx = -1
+            | tx < (-mx) = 1
+            | otherwise = tdir
+        where mx = 450
+
+processAnyMessages :: Chan ChanMsg -> GS -> IO GS
+processAnyMessages ch gs = do
+  chanEmpty <- isEmptyChan ch
+  if not chanEmpty
+      then
+        fmap (processMessage gs) $ readChan ch
+      else
+        return gs
+processMessage :: GS -> ChanMsg -> GS
+processMessage gs (Msg _) = gs
+processMessage gs (NewPaletteList (PaletteList (p:ps))) = 
+  gs { palette = p, palettes = ps }
+processMessage gs (NewPaletteList _) = gs -- empty palette - shouldn't have been queued
 
 initTrain = ((-500,0),1)
 
@@ -48,20 +80,25 @@ data GS = GS { msgs :: [Float]
 
 data PaletteSrc = FromWeb | FromFile
 
-getPaletteList FromWeb =  PGW.getRandomPaletteList 
-getPaletteList FromFile =  PGF.getRandomPaletteList 
-randomPaletteList src gs = do
-  rp <- getPaletteList src
-  return $ case rp of
-    Left _err                  -> traceShow _err gs
-    Right (PaletteList (p:ps)) -> gs { palette = p, palettes = ps }
-    Right _                    -> error "Empty palette list in getPaletteList"
+getPaletteList FromWeb  = PGW.getRandomPaletteList
+getPaletteList FromFile = PGF.getRandomPaletteList
 
-handleInput :: Event -> GS -> IO GS
-handleInput (EventKey (SpecialKey KeySpace) Down _ _) = randomPaletteList FromWeb
-handleInput (EventKey (Char 'f')            Down _ _) = randomPaletteList FromFile
-handleInput (EventKey k                     Down _ _) = return . handleDown k
-handleInput _                                         = return . id -- ignore key ups, and other
+randomPaletteList :: (Chan ChanMsg) ->  PaletteSrc -> IO ()
+randomPaletteList ch src = do
+        _tId <- forkIO$ do
+            rp <- getPaletteList src
+            case rp of
+              Left _err                     -> traceShow _err (return ())
+              Right pl@(PaletteList ps) | not $ null ps -> writeChan ch (NewPaletteList pl)
+                                        | otherwise      -> error "Empty palette list in getPaletteList"
+        return ()
+
+
+handleInput :: (Chan ChanMsg) -> Event -> GS -> IO GS
+handleInput ch (EventKey (SpecialKey KeySpace) Down _ _) gs = randomPaletteList ch FromWeb >> return gs
+handleInput ch (EventKey (Char 'f')            Down _ _) gs = randomPaletteList ch FromFile >> return gs
+handleInput _  (EventKey k                     Down _ _) gs = return $ handleDown k gs
+handleInput _ _                                         gs = return gs -- ignore key ups, and other
 
 handleDown ::  Key -> GS -> GS
 handleDown (SpecialKey KeyEnter) = forwardLight
