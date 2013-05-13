@@ -45,12 +45,15 @@ updateTrain ::  Float -> GS -> GS
 updateTrain step gs = 
   gs { train = ((tx+vel, ty), tdir') }
     where 
-      vel = tdir * step * 20 * case lightSt gs of
-                Stop -> 0; Slow -> 1; Go -> 2
-      ((tx,ty),tdir) = train gs
-      tdir' | tx > mx = -1
+      vel             = tdir * step * 20 * stateMult
+      stateMult       = case lightSt gs of
+                          Stop -> 0
+                          Slow -> 1 
+                          Go -> 2
+      ((tx,ty),tdir)  = train gs
+      tdir' | tx > mx    = -1
             | tx < (-mx) = 1
-            | otherwise = tdir
+            | otherwise  = tdir
         where mx = 450
 
 processAnyMessages :: Chan ChanMsg -> GS -> IO GS
@@ -67,6 +70,7 @@ processMessage gs (NewPaletteList (PaletteList (p:ps))) =
   gs { palette = p, palettes = ps }
 processMessage gs (NewPaletteList _) = gs -- empty palette - shouldn't have been queued
 
+initTrain ::  ((Float, Float), Float)
 initTrain = ((-500,0),1)
 
 data GS = GS { msgs :: [Float] 
@@ -80,6 +84,7 @@ data GS = GS { msgs :: [Float]
 
 data PaletteSrc = FromWeb | FromFile
 
+getPaletteList ::  PaletteSrc -> IO (Either String PaletteList)
 getPaletteList FromWeb  = PGW.getRandomPaletteList
 getPaletteList FromFile = PGF.getRandomPaletteList
 
@@ -114,17 +119,23 @@ handleDown _ = id
 toggleDimType :: ColorControls -> ColorControls
 toggleDimType (ColorControls da dt) = ColorControls da (otherDimType dt)
  
+forwardDim, backDim ::  ColorControls -> ColorControls
 forwardDim (ColorControls dimAmount dimType) = ColorControls (changeDim 1 dimAmount) dimType
 backDim    (ColorControls dimAmount dimType) = ColorControls (changeDim (-1) dimAmount) dimType
+changeDim ::  (Num a, Ord a) => a -> a -> a
 changeDim inc v = minimum [maximum [v + inc, minCap], maxCap]
   where (minCap, maxCap) = (-3,3)
 
+toggleInfo ::  GS -> GS
 toggleInfo gs = gs {displayInfo = not $ displayInfo gs}
+
+forwardPalette ::  GS -> GS
 forwardPalette gs = let current = palette gs in
   case palettes gs of
     [] -> gs
     (n:rest) -> gs { palette = n, palettes = rest ++ [current] }
 
+backPalette ::  GS -> GS
 backPalette gs = 
   case palettes gs of
     [] -> gs
@@ -132,6 +143,7 @@ backPalette gs =
       where (fromEnd, rest) = (last ps, init ps)
             current = palette gs
 
+forwardLight ::  GS -> GS
 forwardLight gs = gs { lightSt = nextLight (lightSt gs) }
 
 data Light = Stop | Go | Slow deriving (Show, Eq)
