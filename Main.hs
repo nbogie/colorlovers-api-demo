@@ -152,16 +152,6 @@ seeFavourites gs = trace (unlines $ summariseFavourites gs) $
 addToFavourites :: GS -> GS
 addToFavourites gs = gs { favourites = palette gs : favourites gs } 
 
-toggleDimType :: ColorControls -> ColorControls
-toggleDimType (ColorControls da dt) = ColorControls da (otherDimType dt)
- 
-forwardDim, backDim ::  ColorControls -> ColorControls
-forwardDim (ColorControls dimAmount dimType) = ColorControls (changeDim 1 dimAmount) dimType
-backDim    (ColorControls dimAmount dimType) = ColorControls (changeDim (-1) dimAmount) dimType
-changeDim ::  (Num a, Ord a) => a -> a -> a
-changeDim inc v = minimum [maximum [v + inc, minCap], maxCap]
-  where (minCap, maxCap) = (-3,3)
-
 toggleInfo ::  GS -> GS
 toggleInfo gs = gs {displayInfo = not $ displayInfo gs}
 
@@ -294,4 +284,15 @@ brightOrLight BrightAndDim = bright
 dimOrDark ::  DimType -> Color -> Color
 dimOrDark     LightAndDark = dark
 dimOrDark     BrightAndDim = dim
+
+toggleDimType :: ColorControls -> ColorControls
+toggleDimType (ColorControls da dt) = ColorControls da (otherDimType dt)
+ 
+forwardDim, backDim ::  ColorControls -> ColorControls
+forwardDim (ColorControls dimAmount dimType) = ColorControls (changeDim 1 dimAmount) dimType
+backDim    (ColorControls dimAmount dimType) = ColorControls (changeDim (-1) dimAmount) dimType
+changeDim ::  (Num a, Ord a) => a -> a -> a
+changeDim inc v = minimum [maximum [v + inc, minCap], maxCap]
+  where (minCap, maxCap) = (-3,3)
+
 
