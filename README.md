@@ -4,10 +4,20 @@ Not an example of good haskell.
 
 It can load a random palette list from a request to the API, or from some local json files.
 
+Usage:
+======
+    prog
+
+To run in fullscreen mode, add a -f flag:
+    prog -f
+
 Keys:
-=====
+-----
  * Space              : load a new random palette from ColourLovers.com
- * 'f'                : load a new random palette list from file (limited)
+ * 'l'                : load a new random palette list from file (limited)
+ * 'r'                : rotate the palette stripes
+ * 'f'                : favourite a palette (save to an in-memory list)
+ * 'F'                : load palette list from your favourites (in-memory only)
  * Cursor Left, Right : Change palette within the current list
  * Cursor Up, Down    : Change the brightness of the palette (automatically, dumbly, two-toned)
  * 'i'                : toggle palette info

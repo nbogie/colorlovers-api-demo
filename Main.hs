@@ -1,16 +1,21 @@
 module Main where
-import Control.Concurrent
-import Control.Concurrent.STM.TChan
-import Control.Concurrent.STM
+import Control.Arrow ((&&&))
+import Control.Concurrent(forkIO)
+import Control.Concurrent.STM(readTChan,TChan,newTChan,isEmptyTChan,writeTChan,atomically)
+import Data.Maybe (fromMaybe)
 import Debug.Trace
 import Graphics.Gloss.Interface.IO.Game
+import System.Environment (getArgs)
 
 import Json hiding (main)
 import qualified PaletteGetterWeb as PGW
 import qualified PaletteGetterFile as PGF
 
 main ::  IO ()
-main = guimain
+main = do
+  args <- getArgs
+  let display = if elem "-f" args then DMFull else DMWindow
+  guimain display
 
 data DisplayMode = DMWindow | DMFull
 
@@ -18,8 +23,8 @@ data ChanMsg = NewPaletteList PaletteList
              | Msg String
              deriving (Show)
 
-guimain ::  IO ()
-guimain = do
+guimain :: DisplayMode ->  IO ()
+guimain dispMode = do
   ch   <- atomically $ newTChan :: IO (TChan ChanMsg) -- receives results of forked web requests, etc
   plE  <- PGF.getRandomPaletteList
   let (pal, pals) = case plE of
@@ -28,18 +33,20 @@ guimain = do
         Right _                    -> error "empty palette list!"
 
   playIO
-          (display DMFull)
+          (display dispMode)
           white -- background colour
           30 -- number of simulation steps to take for each second of real time
-          (GS [] Slow initTrain pal pals False initColorControls) -- the initial world
+          (GS [] Slow (initTrain (winHeight dispMode)) pal pals [] False SDVert initColorControls) -- the initial world
           (return . drawState) -- A function to convert the world into a picture
           (handleInput ch) -- A function to handle input events
           (updateState ch)
   where
-    display DMFull = FullScreen (1280, 800)
+    winHeight DMFull = 1280
+    winHeight DMWindow = 950
+    display DMFull = FullScreen (winHeight DMFull, 800)
     display DMWindow = 
       (InWindow "Color Lovers Palettes demo" --name of the window
-            (950,400) -- initial size of the window
+            (winHeight DMWindow,400) -- initial size of the window
             (0, 0) -- initial position of the window
       )
 
@@ -79,18 +86,22 @@ processMessage gs (NewPaletteList (PaletteList (p:ps))) =
   gs { palette = p, palettes = ps }
 processMessage gs (NewPaletteList _) = gs -- empty palette - shouldn't have been queued
 
-initTrain ::  ((Float, Float), Float)
-initTrain = ((-500,0),1)
+initTrain :: Float ->  ((Float, Float), Float)
+initTrain windowHeight = ((-500,windowHeight * 0.1),1)
+-- initTrain windowHeight = ((-500,0),1)
 
 data GS = GS { msgs :: [Float] 
   , lightSt :: Light
   , train :: Train
   , palette:: Palette
   , palettes:: [Palette]
+  , favourites :: [Palette]
   , displayInfo :: Bool
+  , stripeDirection :: SDirection
   , colorControls :: ColorControls
   } deriving (Show)
 
+data SDirection = SDVert | SDHoriz | SDSlant deriving (Show, Eq)
 data PaletteSrc = FromWeb | FromFile
 
 getPaletteList ::  PaletteSrc -> IO (Either String PaletteList)
@@ -102,21 +113,24 @@ randomPaletteList ch src = do
         _tId <- forkIO$ do
             rp <- getPaletteList src
             case rp of
-              Left _err                     -> traceShow _err (return ())
+              Left _err                                 -> return ()
               Right pl@(PaletteList ps) | not $ null ps -> atomically $ writeTChan ch (NewPaletteList pl)
-                                        | otherwise      -> error "Empty palette list in getPaletteList"
+                                        | otherwise     -> error "Empty palette list in getPaletteList"
         return ()
 
 
 handleInput :: (TChan ChanMsg) -> Event -> GS -> IO GS
 handleInput ch (EventKey (SpecialKey KeySpace) Down _ _) gs = randomPaletteList ch FromWeb >> return gs
-handleInput ch (EventKey (Char 'f')            Down _ _) gs = randomPaletteList ch FromFile >> return gs
+handleInput ch (EventKey (Char 'l')            Down _ _) gs = randomPaletteList ch FromFile >> return gs
 handleInput _  (EventKey k                     Down _ _) gs = return $ handleDown k gs
 handleInput _ _                                         gs = return gs -- ignore key ups, and other
 
 handleDown ::  Key -> GS -> GS
 handleDown (SpecialKey KeyEnter) = forwardLight
+handleDown (Char       'f')      = addToFavourites
+handleDown (Char       'F')      = seeFavourites
 handleDown (Char       'i')      = toggleInfo
+handleDown (Char       'r')      = toggleStripeDirection
 handleDown (Char       'd')      = chgColorCtrls toggleDimType
 handleDown (SpecialKey KeyDown)  = chgColorCtrls forwardDim
 handleDown (SpecialKey KeyUp)    = chgColorCtrls backDim
@@ -124,6 +138,17 @@ handleDown (SpecialKey KeyLeft)  = forwardPalette
 handleDown (SpecialKey KeyRight) = backPalette
 handleDown (MouseButton LeftButton) = forwardLight
 handleDown _ = id
+summariseFavourites :: GS -> [String]
+summariseFavourites gs = map (show . (pId &&& pTitle)) fs
+  where fs = (favourites gs)
+seeFavourites :: GS -> GS
+seeFavourites gs = trace (unlines $ summariseFavourites gs) $ 
+  case favourites gs of
+  [] -> gs
+  (p:ps) -> gs { palette = p, palettes = ps }
+
+addToFavourites :: GS -> GS
+addToFavourites gs = gs { favourites = palette gs : favourites gs } 
 
 toggleDimType :: ColorControls -> ColorControls
 toggleDimType (ColorControls da dt) = ColorControls da (otherDimType dt)
@@ -137,6 +162,10 @@ changeDim inc v = minimum [maximum [v + inc, minCap], maxCap]
 
 toggleInfo ::  GS -> GS
 toggleInfo gs = gs {displayInfo = not $ displayInfo gs}
+toggleStripeDirection gs = gs {stripeDirection = t $ stripeDirection gs } 
+  where t SDVert = SDHoriz
+        t SDHoriz = SDSlant
+        t SDSlant = SDVert
 
 forwardPalette ::  GS -> GS
 forwardPalette gs = let current = palette gs in
@@ -164,7 +193,7 @@ nextLight Slow = Stop
 drawState :: GS -> Picture
 drawState gs = Pictures $ [ 
     drawBackground $ palette gs
-  , drawPalette (-100, 40) $ palette gs
+  , drawPalette2 (-100) (stripeDirection gs) $ palette gs
   , drawTrain (train gs) (palette gs) (colorControls gs) ]
     ++ [drawInfo gs | displayInfo gs]
 
@@ -178,12 +207,34 @@ drawInfo gs = color white $
 
 type Train = ((Float,Float), Float)
 
+drawPalette ::  (Float, Float) -> Palette -> Picture
 drawPalette (tx,ty) pal = Pictures $ zipWith draw [0,100..] (pGlossColors pal)
   where draw x = stripe (tx + x, ty)
 
+drawPalette2 ::  Float -> SDirection -> Palette -> Picture
+drawPalette2 tx sdir pal = rotate rotAmt $ Pictures $ zipWith draw posAndWidths (pGlossColors pal)
+  where 
+    rotAmt | sdir == SDHoriz = 90
+           | sdir == SDSlant = 35
+           | otherwise       = 0
+    -- posAndWidths = [(0, 50), (60, 20), (100, 60), (155, 50), (190, 20)]
+    posAndWidths = reverse $ foldl f [(0,w1)] (drop 1 widths)
+    w1 = head widths
+    f acc@((lastX, wPrev):_) w = ( (lastX + (w + wPrev)/2), w ):acc
+    f _ w = error "BUG: drawPalette2" -- TODO: impossiblify
+
+    draw (x,w) = stripeWidth (tx + x) w
+    widths = map (*500) $ fromMaybe (take 5 $ repeat 0.2) (pWidths pal) 
+
 pGlossColors :: Palette -> [Color]
 pGlossColors = map toGlossColor . pColors
+toGlossColor ::  (Int, Int, Int) -> Color
 toGlossColor (r,g,b) = makeColor8 r g b 255
+
+stripeWidth :: Float -> Float -> Color -> Picture
+stripeWidth x w c = 
+  translate x 0 $ Pictures [
+    color c $ rectangleSolid w 3000]
 
 stripe :: (Float, Float) -> Color -> Picture
 stripe (x,y) c = 
@@ -213,14 +264,22 @@ drawCar (x,y) (ColorControls dimAmount dimType) c = rotate 0 $ Pictures [
 type DimAmount = Int
 data DimType = LightAndDark | BrightAndDim  deriving (Show)
 data ColorControls = ColorControls DimAmount DimType deriving (Show)
+
 chgColorCtrls :: (ColorControls -> ColorControls) -> GS -> GS
 chgColorCtrls f gs@(GS{ colorControls=cc }) = gs {colorControls = f cc}
 
+initColorControls ::  ColorControls
 initColorControls = forwardDim $ ColorControls 0 BrightAndDim
+
+otherDimType ::  DimType -> DimType
 otherDimType BrightAndDim = LightAndDark
 otherDimType LightAndDark = BrightAndDim
+
+brightOrLight ::  DimType -> Color -> Color
 brightOrLight LightAndDark = light
 brightOrLight BrightAndDim = bright
+
+dimOrDark ::  DimType -> Color -> Color
 dimOrDark     LightAndDark = dark
 dimOrDark     BrightAndDim = dim
 

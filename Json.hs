@@ -31,6 +31,8 @@ jsonStringToPalette :: String -> Either String PaletteList
 jsonStringToPalette str = 
   eitherDecode (BS.pack str)
 
+type PaletteId = Integer
+
 data PaletteList = PaletteList [Palette] deriving (Show)
 data Palette = Palette 
   { pId :: Integer

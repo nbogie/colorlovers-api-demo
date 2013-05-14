@@ -71,5 +71,5 @@ Executable glosspalettes
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
   -- Build-tools:         
   
-  GHC-Options:    -O2 -Wall -fno-warn-missing-signatures
+  GHC-Options:    -O2 -threaded -Wall -fno-warn-missing-signatures
 
