@@ -221,7 +221,7 @@ drawPalette2 tx sdir pal = rotate rotAmt $ Pictures $ zipWith draw posAndWidths 
     posAndWidths = reverse $ foldl f [(0,w1)] (drop 1 widths)
     w1 = head widths
     f acc@((lastX, wPrev):_) w = ( (lastX + (w + wPrev)/2), w ):acc
-    f _ w = error "BUG: drawPalette2" -- TODO: impossiblify
+    f _ _ = error "BUG: drawPalette2" -- TODO: impossiblify
 
     draw (x,w) = stripeWidth (tx + x) w
     widths = map (*500) $ fromMaybe (take 5 $ repeat 0.2) (pWidths pal) 

@@ -20,7 +20,9 @@ getPaletteList fname = do
     Right pl -> return (Right pl)
     Left e -> return (Left $ "Error parsing read json: " ++ e)
 
+files :: [String]
 files = [ "inputs/ninja.json"
+        , "inputs/faves.json"
         , "inputs/many.json"
         , "inputs/candy.json"
         , "inputs/example.json"
