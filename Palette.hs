@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-} 
-module Json where
+module Palette where
 --
 -- example urls for palettes
 -- http://www.colourlovers.com/api/palette/1244?format=json

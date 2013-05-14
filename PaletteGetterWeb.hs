@@ -1,7 +1,7 @@
 module PaletteGetterWeb where
 import System.Environment (getArgs)
 import HttpUtils (getBody)
-import Json hiding (main)
+import Palette hiding (main)
 
 -- Sample api requests
 --

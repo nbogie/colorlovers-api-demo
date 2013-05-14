@@ -7,7 +7,7 @@ import Debug.Trace
 import Graphics.Gloss.Interface.IO.Game
 import System.Environment (getArgs)
 
-import Json hiding (main)
+import Palette hiding (main)
 import qualified PaletteGetterWeb as PGW
 import qualified PaletteGetterFile as PGF
 

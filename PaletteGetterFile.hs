@@ -1,7 +1,7 @@
 module PaletteGetterFile (getRandomPaletteList) where
 import System.Random
 
-import Json hiding (main)
+import Palette hiding (main)
 
 getRandomPaletteList :: IO (Either String PaletteList)
 getRandomPaletteList  = do
