@@ -44,6 +44,9 @@ data Palette = Palette
   }
   deriving (Show)
 
+numColors :: Palette -> Int
+numColors = length .  pColors
+
 instance FromJSON PaletteList where
   parseJSON ar@(Array _a) = fmap PaletteList $ parseJSON ar
     -- how to take individuals from the array: 

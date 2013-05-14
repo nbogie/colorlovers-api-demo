@@ -123,7 +123,7 @@ handleInput :: (TChan ChanMsg) -> Event -> GS -> IO GS
 handleInput ch (EventKey (SpecialKey KeySpace) Down _ _) gs = randomPaletteList ch FromWeb >> return gs
 handleInput ch (EventKey (Char 'l')            Down _ _) gs = randomPaletteList ch FromFile >> return gs
 handleInput _  (EventKey k                     Down _ _) gs = return $ handleDown k gs
-handleInput _ _                                         gs = return gs -- ignore key ups, and other
+handleInput _ _                                          gs = return gs -- ignore key ups, and other
 
 handleDown ::  Key -> GS -> GS
 handleDown (SpecialKey KeyEnter) = forwardLight
@@ -138,9 +138,11 @@ handleDown (SpecialKey KeyLeft)  = forwardPalette
 handleDown (SpecialKey KeyRight) = backPalette
 handleDown (MouseButton LeftButton) = forwardLight
 handleDown _ = id
+
 summariseFavourites :: GS -> [String]
 summariseFavourites gs = map (show . (pId &&& pTitle)) fs
   where fs = (favourites gs)
+
 seeFavourites :: GS -> GS
 seeFavourites gs = trace (unlines $ summariseFavourites gs) $ 
   case favourites gs of
@@ -162,6 +164,8 @@ changeDim inc v = minimum [maximum [v + inc, minCap], maxCap]
 
 toggleInfo ::  GS -> GS
 toggleInfo gs = gs {displayInfo = not $ displayInfo gs}
+
+toggleStripeDirection ::  GS -> GS
 toggleStripeDirection gs = gs {stripeDirection = t $ stripeDirection gs } 
   where t SDVert = SDHoriz
         t SDHoriz = SDSlant
@@ -193,6 +197,7 @@ nextLight Slow = Stop
 drawState :: GS -> Picture
 drawState gs = Pictures $ [ 
     drawBackground $ palette gs
+--   , translate (0) 0 $ drawPaletteCube $ palette gs
   , drawPalette2 (-100) (stripeDirection gs) $ palette gs
   , drawTrain (train gs) (palette gs) (colorControls gs) ]
     ++ [drawInfo gs | displayInfo gs]
@@ -211,20 +216,27 @@ drawPalette ::  (Float, Float) -> Palette -> Picture
 drawPalette (tx,ty) pal = Pictures $ zipWith draw [0,100..] (pGlossColors pal)
   where draw x = stripe (tx + x, ty)
 
+drawPaletteCube :: Palette -> Picture
+drawPaletteCube pal = scale 50 50 $ Pictures $ reverse $ zipWith cube colors [1..]
+  where
+    cube col scl = Color col $ scale scl scl $ rectangleSolid 1 1
+    colors = pGlossColors pal
+
 drawPalette2 ::  Float -> SDirection -> Palette -> Picture
-drawPalette2 tx sdir pal = rotate rotAmt $ Pictures $ zipWith draw posAndWidths (pGlossColors pal)
+drawPalette2 tx sdir pal = rotate rotAmt $ Pictures $ zipWith draw (posAndWidths widths) (pGlossColors pal)
   where 
+    draw (x,w) = stripeWidth (tx + x) w
+    widths = map (*500) $ fromMaybe defaultWidths (pWidths pal) 
+      where defaultWidths = take (numColors pal) $ repeat 0.2
     rotAmt | sdir == SDHoriz = 90
            | sdir == SDSlant = 35
            | otherwise       = 0
-    -- posAndWidths = [(0, 50), (60, 20), (100, 60), (155, 50), (190, 20)]
-    posAndWidths = reverse $ foldl f [(0,w1)] (drop 1 widths)
-    w1 = head widths
-    f acc@((lastX, wPrev):_) w = ( (lastX + (w + wPrev)/2), w ):acc
-    f _ _ = error "BUG: drawPalette2" -- TODO: impossiblify
 
-    draw (x,w) = stripeWidth (tx + x) w
-    widths = map (*500) $ fromMaybe (take 5 $ repeat 0.2) (pWidths pal) 
+posAndWidths widths = zip midPositions widths
+  where
+    midPositions = reverse $ fst $ foldl f ([], 0) widths
+      where
+        f (midPosns, edge) w = ( edge + w/2 : midPosns, edge + w)
 
 pGlossColors :: Palette -> [Color]
 pGlossColors = map toGlossColor . pColors
