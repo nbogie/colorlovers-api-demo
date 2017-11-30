@@ -10,7 +10,7 @@ Name:                glosspalettes
 Version:             0.2
 
 -- A short (one-line) description of the package.
-Synopsis:            Beginner's app, showing palettes in gloss.
+Synopsis:            Beginner's app, showing palettes from colourlovers.com in gloss.
 
 -- A longer description of the package.
 -- Description:         
