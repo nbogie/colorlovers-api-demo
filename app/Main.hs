@@ -5,6 +5,7 @@ import Control.Concurrent.STM(readTChan,TChan,newTChan,isEmptyTChan,writeTChan,a
 import Data.Maybe (fromMaybe)
 import Debug.Trace
 import Graphics.Gloss.Interface.IO.Game
+import Graphics.Gloss.Data.Color
 import System.Environment (getArgs)
 
 import Palette hiding (main)
@@ -43,7 +44,7 @@ guimain dispMode = do
   where
     winHeight DMFull = 1280
     winHeight DMWindow = 950
-    display DMFull = FullScreen (winHeight DMFull, 800)
+    display DMFull = FullScreen
     display DMWindow = 
       (InWindow "Color Lovers Palettes demo" --name of the window
             (winHeight DMWindow,400) -- initial size of the window
@@ -231,7 +232,7 @@ posAndWidths widths = zip midPositions widths
 pGlossColors :: Palette -> [Color]
 pGlossColors = map toGlossColor . pColors
 toGlossColor ::  (Int, Int, Int) -> Color
-toGlossColor (r,g,b) = makeColor8 r g b 255
+toGlossColor (r,g,b) = makeColorI r g b 255
 
 stripeWidth :: Float -> Float -> Color -> Picture
 stripeWidth x w c = 
